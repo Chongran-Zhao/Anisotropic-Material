@@ -1,4 +1,4 @@
-% This code is to verfy the stress response of transverse isotropic 
+% This code is to verfy the stress response of transverse isotropic
 % HGO model under uniform tensile.
 % About HGO model, please refer to Holzapfel 2006 titiled by
 % A new Constitutive Framework for Arterial Wall Mechanics and a Comparative Study of Material Models
@@ -37,14 +37,15 @@ dPsi_dlambda3 = @(c, k1, k2, theta, kappa, lambda1, lambda2, lambda3) c .* lambd
     .* ( exp( ff(k2, kappa, theta, lambda1, lambda2, lambda3).^2 ) - 1.0 ) .* ff(k2, kappa, theta, lambda1, lambda2, lambda3)...
     .* dff_dlambda3(k2, kappa, theta, lambda1, lambda2, lambda3);
 
-lambda1 = linspace(1.0, 1.35, 50);
+lambda1 = linspace(1.0, 1.07, 50);
 P1 = zeros(length(lambda1), 1);
-c = 21.4; %kPa
-k1 = 1018.8; %kPa
-k2 = 20.0;
-theta_group = [31, 32, 33, 34, 35, 36, 37] .* pi ./ 180;
-kappa_group = [0.111, 0.222, 0.333, 0.444];
-
+c = 33.2; %kPa
+k1 = 2845.95; %kPa
+k2 = 204.42;
+% theta_group = [31, 32, 33, 34, 35, 36, 37] .* pi ./ 180;
+% kappa_group = [0.111, 0.222, 0.333, 0.444];
+theta_group = [49.2] .* pi ./ 180.0;
+kappa_group = [0.3];
 theta_labels = arrayfun(@(th) sprintf('$\\theta = %.0f^\\circ$', th / (pi / 180)), theta_group, 'UniformOutput', false);
 kappa_labels = arrayfun(@(k) sprintf('$\\kappa = %0.3f$', k), kappa_group, 'UniformOutput', false);
 legendItems = {};
@@ -53,6 +54,8 @@ colors = ['r', 'b', 'g', 'm', 'c', 'y', 'k'];
 lineStyles = {'--', ':', '-.', '-'};
 figure;
 hold on;
+
+p1 = 0.0;
 for ii = 1:length(theta_group)
     theta = theta_group(ii);
     for jj = 1:length(kappa_group)
@@ -62,11 +65,19 @@ for ii = 1:length(theta_group)
 
             eq2 = @(p, lambda2, lambda3) -p/lambda3 + dPsi_dlambda3(c, k1, k2, theta, kappa, lambda1(kk), lambda2, lambda3);
 
-            initial_guess = [1e6; sqrt(1/lambda1(kk))];
+            initial_guess = [p1; sqrt(1/lambda1(kk))];
 
-            options = optimoptions('fsolve', 'TolFun', 1e-6, 'MaxIter', 400, 'Display', 'iter');
-            sol = fsolve(@(x) [eq1(x(1), x(2), 1.0/(lambda1(kk)*x(2))), eq2(x(1), x(2), 1.0/(lambda1(kk)*x(2)))], initial_guess);
+            options = optimoptions('fsolve', ...
+                'MaxFunctionEvaluations', 10000, ...
+                'Algorithm','levenberg-marquardt', ...
+                'MaxIter', 400, ...
+                'Display', 'iter');
 
+            sol = fsolve(@(x) [...
+                eq1(x(1), x(2), 1.0/(lambda1(kk)*x(2))), ...
+                eq2(x(1), x(2), 1.0/(lambda1(kk)*x(2)))], ...
+                initial_guess, ...
+                options);
             p1 = sol(1);
             lambda2 = sol(2);
             lambda3 = 1.0/(lambda1(kk)*lambda2);
